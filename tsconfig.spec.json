@@ -4,6 +4,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
+    // zone.js can't follow native async/await, so compile it to generators, as the
+    // Angular CLI does for zone apps.
+    "target": "ES2016",
     "types": ["jest", "node"]
   },
   "include": ["src/**/*.d.ts", "src/**/*.spec.ts", "src/testing/**/*.ts"]

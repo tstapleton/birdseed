@@ -11,8 +11,8 @@ showing how the app's behaviour changed, as sequence diagrams recorded from its 
   straight from a recipe or from a whole week's plan. Items already on the list are
   topped up, with units converted, rather than listed twice.
 
-Built with Angular 20 (zoneless, signals) and NgRx SignalStore, with async/await rather
-than RxJS. API clients talk to the backend through a small `Transport` (`fetch` in
+Built with Angular 20 (zone.js change detection, signals) and NgRx SignalStore, with
+async/await rather than RxJS. API clients talk to the backend through a small `Transport` (`fetch` in
 production). There's no server: the demo swaps in a transport that answers from an
 in-memory database kept in `localStorage`, so `ng serve` is all you need, and the app
 deploys as static files.
@@ -53,6 +53,9 @@ grocery list" panel or a meal slot use the page's store directly. Shared UI (a c
 panel, a stepper) lives in `shared/ui`.
 
 ## Tests
+
+Tests run under zone.js like the app (`setupZoneTestEnv`), with specs compiled to ES2016
+so zone.js can follow `async`/`await`.
 
 Integration tests (`*.integration.spec.ts`) render the whole app with Testing Library and
 drive it as a user would. Everything in `core/` is replaced by Jest mocks backed by an

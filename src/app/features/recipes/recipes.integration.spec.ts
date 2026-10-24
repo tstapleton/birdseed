@@ -38,7 +38,8 @@ describe('Recipes', () => {
 
     it('puts the star back when saving a favourite fails', async () => {
       const { recipes, toaster, user } = await renderApp('/recipes');
-      recipes.setFavorite.mockRejectedValueOnce(new ApiError(503));
+      // Rejected lazily: under zone.js an eagerly rejected promise counts as unhandled.
+      recipes.setFavorite.mockImplementationOnce(() => Promise.reject(new ApiError(503)));
 
       await user.click(await screen.findByRole('button', { name: 'Add Banana bread to favourites' }));
 
