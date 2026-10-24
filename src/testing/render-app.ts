@@ -13,6 +13,7 @@ import { RecipesApi } from '../app/core/api/recipes-api';
 import { MockDatabase, NotFoundError } from '../app/core/mock-backend/mock-database';
 import { Toaster } from '../app/core/notifications/toaster';
 import { Clock } from '../app/core/time/clock';
+import { GroceryAdder } from '../app/features/groceries/data-access/grocery-adder';
 
 /** Tests run on Wednesday 15 April 2026. */
 export const TODAY = new Date(2026, 3, 15);
@@ -80,6 +81,7 @@ export async function renderApp(url: string, backend: Backend = createBackend())
       traced('Grocery API', { provide: GroceryApi, useValue: backend.groceries }, { group: HOST }),
       traced('Meal plan API', { provide: MealPlanApi, useValue: backend.mealPlan }, { group: HOST }),
       traced('Toaster', { provide: Toaster, useValue: backend.toaster }, { group: HOST, methods: ['success', 'error'] }),
+      traced('Grocery adder', GroceryAdder, { group: APP }),
       { provide: Clock, useValue: { today: () => new Date(TODAY) } },
       provideTracing({ ui: 'UI', group: APP }),
     ],
