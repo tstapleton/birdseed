@@ -1,1 +1,119 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  color-scheme: light dark;
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface-2: #f1eee6;
+  --text: #24211c;
+  --muted: #6e685d;
+  --border: #e3ded2;
+  --accent: #2f6b4f;
+  --accent-strong: #24553e;
+  --accent-soft: rgba(47, 107, 79, 0.12);
+  --on-accent: #ffffff;
+  --danger: #b4382f;
+  --danger-soft: rgba(180, 56, 47, 0.1);
+  --warning: #9a6a00;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(36, 33, 28, 0.06), 0 4px 16px rgba(36, 33, 28, 0.06);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151412;
+    --surface: #1e1c19;
+    --surface-2: #27251f;
+    --text: #ede9e1;
+    --muted: #a49d90;
+    --border: #35322b;
+    --accent: #6cc196;
+    --accent-strong: #8fd4b0;
+    --accent-soft: rgba(108, 193, 150, 0.14);
+    --on-accent: #0e1a13;
+    --danger: #ff8a7f;
+    --danger-soft: rgba(255, 138, 127, 0.12);
+    --warning: #e3b341;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+h1, h2, h3 { line-height: 1.2; margin: 0; }
+h1 { font-size: 26px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; }
+h3 { font-size: 15px; }
+p { margin: 0; }
+
+/* Shell */
+.app-header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  padding: 12px max(16px, calc((100vw - 1120px) / 2));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+.brand-mark { color: var(--accent); font-size: 20px; }
+.app-header nav { display: flex; gap: 4px; }
+.app-header nav a { padding: 6px 12px; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 500; }
+.app-header nav a:hover { color: var(--text); background: var(--surface-2); }
+.app-header nav a.active { color: var(--accent-strong); background: var(--accent-soft); }
+.app-main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+
+/* Page structure */
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.page-head p { color: var(--muted); margin-top: 4px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-body { padding: 16px 20px; }
+.muted { color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+/* Controls */
+button, .button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: inherit; font-weight: 600; font-size: 14px;
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none;
+}
+button:hover, .button:hover { background: var(--surface-2); }
+button:disabled { opacity: 0.55; cursor: default; }
+button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button.primary:hover, .button.primary:hover { background: var(--accent-strong); }
+button.danger { color: var(--danger); }
+button.danger.solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+button.ghost { border-color: transparent; background: transparent; }
+button.icon { padding: 4px 8px; border-color: transparent; background: transparent; color: var(--muted); }
+button.icon:hover { color: var(--text); background: var(--surface-2); }
+
+input, select, textarea {
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 0;
+}
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+textarea { resize: vertical; }
+label { font-weight: 600; font-size: 13px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-error { color: var(--danger); font-size: 13px; }
+[aria-invalid='true'] { border-color: var(--danger); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+}
+button.chip { cursor: pointer; }
+.chip[aria-pressed='true'] { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); }
+
+/* Toasts */
+.toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 50; width: min(420px, calc(100vw - 32px)); }
+.toast { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 10px; background: var(--text); color: var(--bg); box-shadow: var(--shadow); }
+.toast.error { background: var(--danger); color: #fff; }
+.toast button.icon { color: inherit; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
