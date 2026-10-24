@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { withTracing } from '@tstapleton/plotline/store';
+import { GroceryApi } from '../../../core/api/grocery-api';
 import { MealPlanApi } from '../../../core/api/meal-plan-api';
 import { MEALS, Meal, NewGroceryItem, PlannedMeal, Recipe, RecipeSummary } from '../../../core/api/models';
 import { RecipesApi } from '../../../core/api/recipes-api';
@@ -54,6 +55,7 @@ export const MealPlanStore = signalStore(
       store,
       api = inject(MealPlanApi),
       recipesApi = inject(RecipesApi),
+      groceryApi = inject(GroceryApi),
       adder = inject(GroceryAdder),
       toaster = inject(Toaster),
       clock = inject(Clock),
@@ -134,17 +136,22 @@ export const MealPlanStore = signalStore(
           }
         },
 
-        /** One list with everything the week's meals need, scaled to their servings. */
+        /**
+         * One list with everything the week's meals need, scaled to their servings. If the
+         * week already has a list, it's topped up rather than duplicated.
+         */
         async makeGroceryList(name: string): Promise<void> {
           const meals = store.meals();
           if (!meals.length || store.generating()) return;
           patchState(store, { generating: true });
           try {
             const recipeIds = [...new Set(meals.map((m) => m.recipeId))];
-            const recipes = await Promise.all(recipeIds.map((id) => recipesApi.get(id)));
-            const { list } = await adder.createList(name, itemsFor(meals, recipes));
+            const [recipes, lists] = await Promise.all([Promise.all(recipeIds.map((id) => recipesApi.get(id))), groceryApi.lists()]);
+            const existing = lists.find((l) => l.name === name);
+            const items = itemsFor(meals, recipes);
+            const { list } = existing ? await adder.addToList(existing.id, items) : await adder.createList(name, items);
             patchState(store, { generating: false });
-            toaster.success(`Made ${list.name} from ${meals.length} meals`);
+            toaster.success(`Added ${meals.length} meals to ${list.name}`);
             await router.navigate(['/groceries', list.id]);
           } catch {
             patchState(store, { generating: false });
