@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter, withComponentInputBinding, withDisabledInitialNavigation } from '@angular/router';
+import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { render } from '@testing-library/angular';
 import { provideTracing, traced } from '@tstapleton/plotline/jest';
 import userEvent from '@testing-library/user-event';
@@ -80,9 +80,10 @@ export type Backend = ReturnType<typeof createBackend>;
 /** Renders the whole app at `url`, with the host's services mocked. */
 export async function renderApp(url: string, backend: Backend = createBackend()) {
   await render(App, {
+    // Start at `url`; otherwise the router first visits '/' (and loads the recipes).
+    initialRoute: url,
     providers: [
-      // Start at `url` rather than at '/' and then `url`.
-      provideRouter(routes, withComponentInputBinding(), withDisabledInitialNavigation()),
+      provideRouter(routes, withComponentInputBinding()),
       traced('Recipes API', { provide: RecipesApi, useValue: backend.recipes }, { group: HOST }),
       traced('Grocery API', { provide: GroceryApi, useValue: backend.groceries }, { group: HOST }),
       traced('Meal plan API', { provide: MealPlanApi, useValue: backend.mealPlan }, { group: HOST }),
@@ -92,6 +93,5 @@ export async function renderApp(url: string, backend: Backend = createBackend())
       provideTracing({ ui: 'UI', group: APP }),
     ],
   });
-  await TestBed.inject(Router).navigateByUrl(url);
   return { ...backend, user: userEvent.setup(), router: TestBed.inject(Router) };
 }
