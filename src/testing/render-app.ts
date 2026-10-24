@@ -40,7 +40,13 @@ function respond<T>(answer: () => T): Observable<T> {
   );
 }
 
-export function createBackend(db = new MockDatabase(undefined, TODAY)) {
+/** Ids count up and the clock stands still, so every run records the same data. */
+function predictableSources() {
+  let next = 1;
+  return { newId: (prefix: string) => `${prefix}-new-${next++}`, now: () => new Date(TODAY) };
+}
+
+export function createBackend(db = new MockDatabase(undefined, TODAY, predictableSources())) {
   const recipes = {
     list: jest.fn(() => respond(() => db.listRecipes())),
     get: jest.fn((id: string) => respond(() => db.getRecipe(id))),

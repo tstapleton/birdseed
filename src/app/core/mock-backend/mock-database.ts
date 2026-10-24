@@ -10,13 +10,28 @@ interface Tables {
 
 const STORAGE_KEY = 'kitchen.db.v1';
 
+/** Where new ids and timestamps come from; tests pass predictable ones. */
+export interface DatabaseSources {
+  newId(prefix: string): string;
+  now(): Date;
+}
+
+const randomSources: DatabaseSources = {
+  newId: (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`,
+  now: () => new Date(),
+};
+
 export class NotFoundError extends Error {}
 
 /** The demo backend's data, kept in localStorage so changes survive a reload. */
 export class MockDatabase {
   private tables: Tables;
 
-  constructor(private readonly storage: Storage | undefined, today: Date) {
+  constructor(
+    private readonly storage: Storage | undefined,
+    today: Date,
+    private readonly sources: DatabaseSources = randomSources,
+  ) {
     this.tables = this.read() ?? seed(today);
     this.write();
   }
@@ -32,14 +47,14 @@ export class MockDatabase {
   }
 
   createRecipe(draft: RecipeDraft): Recipe {
-    const recipe: Recipe = { ...draft, id: newId('r'), favorite: false, updatedAt: new Date().toISOString() };
+    const recipe: Recipe = { ...draft, id: this.sources.newId('r'), favorite: false, updatedAt: this.sources.now().toISOString() };
     this.tables.recipes.push(recipe);
     this.write();
     return recipe;
   }
 
   updateRecipe(id: string, patch: Partial<Recipe>): Recipe {
-    const recipe = Object.assign(find(this.tables.recipes, id), patch, { id, updatedAt: new Date().toISOString() });
+    const recipe = Object.assign(find(this.tables.recipes, id), patch, { id, updatedAt: this.sources.now().toISOString() });
     this.write();
     return recipe;
   }
@@ -70,7 +85,7 @@ export class MockDatabase {
   }
 
   createGroceryList(name: string): GroceryList {
-    const list: GroceryList = { id: newId('g'), name, createdAt: new Date().toISOString(), items: [] };
+    const list: GroceryList = { id: this.sources.newId('g'), name, createdAt: this.sources.now().toISOString(), items: [] };
     this.tables.groceryLists.push(list);
     this.write();
     return list;
@@ -84,7 +99,7 @@ export class MockDatabase {
 
   addGroceryItems(listId: string, items: NewGroceryItem[]): GroceryList {
     const list = find(this.tables.groceryLists, listId);
-    list.items.push(...items.map((item) => ({ ...item, id: newId('i'), checked: false })));
+    list.items.push(...items.map((item) => ({ ...item, id: this.sources.newId('i'), checked: false })));
     this.write();
     return list;
   }
@@ -118,7 +133,7 @@ export class MockDatabase {
   }
 
   addMeal(meal: NewPlannedMeal): PlannedMeal {
-    const planned: PlannedMeal = { ...meal, id: newId('m') };
+    const planned: PlannedMeal = { ...meal, id: this.sources.newId('m') };
     this.tables.mealPlan.push(planned);
     this.write();
     return planned;
@@ -174,6 +189,3 @@ function find<T extends { id: string }>(rows: T[], id: string): T {
   return row;
 }
 
-function newId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
