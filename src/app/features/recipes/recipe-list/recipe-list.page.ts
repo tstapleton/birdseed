@@ -7,6 +7,7 @@ import { RecipeCardComponent } from './recipe-card.component';
   selector: 'app-recipe-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, RecipeCardComponent],
+  providers: [RecipesStore],
   template: `
     <div class="page-head">
       <div>

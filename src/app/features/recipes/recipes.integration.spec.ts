@@ -47,7 +47,57 @@ describe('Recipes', () => {
       expect(toaster.error).toHaveBeenCalledWith("Couldn't update Banana bread");
     });
   });
+
+  describe('a recipe', () => {
+    it('opens from the collection and scales its ingredients to the servings', async () => {
+      const { user } = await renderApp('/recipes');
+
+      await user.click(await screen.findByRole('link', { name: 'Shakshuka' }));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Shakshuka' })).toBeInTheDocument();
+      expect(ingredientLines()).toContain('4 eggs');
+
+      await user.click(screen.getByRole('button', { name: 'More servings' }));
+      await user.click(screen.getByRole('button', { name: 'More servings' }));
+
+      expect(within(screen.getByRole('group', { name: 'Servings' })).getByText('4')).toBeInTheDocument();
+      expect(ingredientLines()).toEqual(expect.arrayContaining(['8 eggs', '4 tbsp olive oil', '2 cans chopped tomatoes', '100 g feta']));
+    });
+
+    it('deletes a recipe once the user confirms', async () => {
+      const { recipes, toaster, user } = await renderApp('/recipes/r-banana-bread');
+
+      await user.click(await screen.findByRole('button', { name: 'Delete' }));
+      expect(screen.getByRole('alertdialog', { name: /Delete Banana bread\?/ })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Delete recipe' }));
+
+      expect(await screen.findByText('7 recipes in your collection')).toBeInTheDocument();
+      expect(recipes.delete).toHaveBeenCalledWith('r-banana-bread');
+      expect(toaster.success).toHaveBeenCalledWith('Deleted Banana bread');
+    });
+
+    it('keeps the recipe when the user cancels the delete', async () => {
+      const { recipes, user } = await renderApp('/recipes/r-banana-bread');
+
+      await user.click(await screen.findByRole('button', { name: 'Delete' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(recipes.delete).not.toHaveBeenCalled();
+    });
+
+    it("says so when a recipe doesn't exist", async () => {
+      await renderApp('/recipes/r-nope');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent("That recipe doesn't exist.");
+    });
+  });
 });
+
+function ingredientLines(): string[] {
+  return within(screen.getByRole('list', { name: 'Ingredients' }))
+    .getAllByRole('listitem')
+    .map((li) => li.textContent!.replace(/\s+/g, ' ').trim());
+}
 
 function recipeTitles(): string[] {
   return within(screen.getByRole('list', { name: 'Recipes' }))
