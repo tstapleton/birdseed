@@ -1,59 +1,67 @@
-# RecipeApp
+# Kitchen
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.41.
+A recipe, meal planning and grocery list app, and the example app for
+[plotline](https://github.com/tstapleton/plotline): every pull request gets a comment
+showing how the app's behaviour changed, as sequence diagrams recorded from its tests.
 
-## Development server
+- **Recipes**: browse, search, filter by tag, star favourites, scale servings, and write
+  or edit recipes (paste an ingredient list and it's read for you).
+- **Meal plan**: plan recipes into breakfast, lunch and dinner for any week, with servings.
+- **Grocery lists**: add items as free text ("2 kg potatoes, milk"), sorted into aisles,
+  straight from a recipe or from a whole week's plan. Items already on the list are
+  topped up, with units converted, rather than listed twice.
 
-To start a local development server, run:
+Built with Angular 20 (zoneless, signals) and NgRx SignalStore. There's no server: an
+HTTP interceptor answers `/api/*` from an in-memory database kept in `localStorage`, so
+`ng serve` is all you need, and the app deploys as static files.
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Run it
 
 ```bash
-ng generate --help
+npm ci        # needs a GitHub token for @tstapleton packages; see below
+npm start     # http://localhost:4200
+npm test      # unit and integration tests
 ```
 
-## Building
+`@tstapleton/plotline` is published to GitHub Packages, which needs a token even for
+public packages. Create a [personal access token](https://github.com/settings/tokens)
+with `read:packages` and add it to your user `~/.npmrc`:
 
-To build the project run:
+```
+//npm.pkg.github.com/:_authToken=YOUR_TOKEN
+```
+
+## How it's put together
+
+```
+src/app/
+  core/         The "host app": API clients, models, clock, toasts, and the mock backend
+  shared/       Kitchen logic with no Angular in it: units, ingredient parsing, aisles, merging
+  features/
+    recipes/    Collection, recipe page, editor (RecipesStore, RecipeDetailStore, RecipeEditorStore)
+    groceries/  Lists and a list (GroceryListsStore, GroceryListStore, GroceryAdder)
+    meal-plan/  The week view (MealPlanStore)
+```
+
+Each feature keeps its state in a SignalStore provided by the page that uses it.
+
+## Tests
+
+Integration tests (`*.integration.spec.ts`) render the whole app with Testing Library and
+drive it as a user would. Everything in `core/` is replaced by Jest mocks backed by an
+in-memory copy of the demo data (`src/testing/render-app.ts`), the way the feature would
+be tested inside a larger app.
+
+## Behaviour diffs with plotline
+
+Each store is marked with `withTracing('…')`, and the test harness names the mocked
+services with `traced(…)`. Then:
 
 ```bash
-ng build
+npm run test:plotline     # writes plotline/<spec>/<test>.md, one sequence diagram per test
+npm run plotline:report   # renders them all to plotline/report/index.html
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+On pull requests, [`.github/workflows/plotline.yml`](.github/workflows/plotline.yml) runs
+the tests on the PR and on its base, and comments with a diagram of each test whose
+behaviour changed.
