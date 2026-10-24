@@ -8,7 +8,7 @@ interface Tables {
   mealPlan: PlannedMeal[];
 }
 
-const STORAGE_KEY = 'kitchen.db.v1';
+const STORAGE_KEY = 'birdseed.db.v1';
 
 /** Where new ids and timestamps come from; tests pass predictable ones. */
 export interface DatabaseSources {

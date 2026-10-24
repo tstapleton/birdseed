@@ -1,4 +1,4 @@
-# Kitchen
+# Birdseed
 
 A recipe, meal planning and grocery list app, and the example app for
 [plotline](https://github.com/tstapleton/plotline): every pull request gets a comment

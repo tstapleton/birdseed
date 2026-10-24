@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "recipe-app": {
+    "birdseed": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -53,10 +53,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "recipe-app:build:production"
+              "buildTarget": "birdseed:build:production"
             },
             "development": {
-              "buildTarget": "recipe-app:build:development"
+              "buildTarget": "birdseed:build:development"
             }
           },
           "defaultConfiguration": "development"

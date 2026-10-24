@@ -19,7 +19,7 @@ import { GroceryAdder } from '../app/features/groceries/data-access/grocery-adde
 export const TODAY = new Date(2026, 3, 15);
 
 // Diagram boxes: the app's own code, and the host services it talks to (mocked).
-const APP = 'Kitchen app';
+const APP = 'Birdseed app';
 const HOST = 'Backend and host services (mocked)';
 
 /**

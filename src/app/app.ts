@@ -10,10 +10,11 @@ import { ToastOutletComponent } from './core/notifications/toast-outlet.componen
     <header class="app-header">
       <a class="brand" routerLink="/recipes">
         <svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-          <path d="M3 11h18a9 9 0 0 1-18 0Z" fill="currentColor" />
-          <path d="M8 7c0-1.5 1.5-1.5 1.5-3M12.5 7c0-1.5 1.5-1.5 1.5-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <ellipse cx="8" cy="15" rx="3.2" ry="5" transform="rotate(-30 8 15)" fill="currentColor" />
+          <ellipse cx="16.5" cy="13" rx="3.2" ry="5" transform="rotate(25 16.5 13)" fill="currentColor" opacity="0.75" />
+          <ellipse cx="12" cy="6" rx="2.6" ry="4" transform="rotate(-5 12 6)" fill="currentColor" opacity="0.5" />
         </svg>
-        Kitchen
+        Birdseed
       </a>
       <nav aria-label="Main">
         <a routerLink="/recipes" routerLinkActive="active">Recipes</a>
