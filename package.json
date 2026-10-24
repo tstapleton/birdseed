@@ -31,7 +31,7 @@
     "@angular/platform-browser": "20.3.34",
     "@angular/router": "20.3.34",
     "@ngrx/signals": "20.1.0",
-    "@tstapleton/plotline": "0.1.0",
+    "@tstapleton/plotline": "0.1.1",
     "rxjs": "7.8.2",
     "tslib": "2.8.1"
   },

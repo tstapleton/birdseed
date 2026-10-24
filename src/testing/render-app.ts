@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { render } from '@testing-library/angular';
-import { provideTracing, traced } from '@tstapleton/plotline/jest';
+import { provideTracing, recordPlotline, traced } from '@tstapleton/plotline/jest';
 import userEvent from '@testing-library/user-event';
 import { Observable, defer, map, timer } from 'rxjs';
 import { App } from '../app/app';
@@ -14,6 +14,9 @@ import { MockDatabase, NotFoundError } from '../app/core/mock-backend/mock-datab
 import { Toaster } from '../app/core/notifications/toaster';
 import { Clock } from '../app/core/time/clock';
 import { GroceryAdder } from '../app/features/groceries/data-access/grocery-adder';
+
+// Every spec that renders the app through this helper is recorded (with PLOTLINE=1).
+recordPlotline();
 
 /** Tests run on Wednesday 15 April 2026. */
 export const TODAY = new Date(2026, 3, 15);
