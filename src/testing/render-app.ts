@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
+import { Router, provideRouter, withComponentInputBinding, withDisabledInitialNavigation } from '@angular/router';
 import { render } from '@testing-library/angular';
 import { provideTracing, traced } from '@tstapleton/plotline/jest';
 import userEvent from '@testing-library/user-event';
@@ -74,7 +74,8 @@ export type Backend = ReturnType<typeof createBackend>;
 export async function renderApp(url: string, backend: Backend = createBackend()) {
   await render(App, {
     providers: [
-      provideRouter(routes, withComponentInputBinding()),
+      // Start at `url` rather than at '/' and then `url`.
+      provideRouter(routes, withComponentInputBinding(), withDisabledInitialNavigation()),
       traced('Recipes API', { provide: RecipesApi, useValue: backend.recipes }, { group: HOST }),
       traced('Grocery API', { provide: GroceryApi, useValue: backend.groceries }, { group: HOST }),
       traced('Meal plan API', { provide: MealPlanApi, useValue: backend.mealPlan }, { group: HOST }),
