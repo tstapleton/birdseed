@@ -54,7 +54,18 @@ describe('Meal plan', () => {
     // Garlic for the curry (3), shakshuka (2) and spaghetti (2), as one item.
     expect(screen.getByRole('checkbox', { name: '7 cloves garlic' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: '2 onion' })).toBeInTheDocument();
-    expect(toaster.success).toHaveBeenCalledWith('Made Week of 13 April from 3 meals');
+    expect(toaster.success).toHaveBeenCalledWith('Added 3 meals to Week of 13 April');
+  });
+
+  it("tops up the week's list when it already exists", async () => {
+    const { db, groceries, user } = await renderApp('/plan');
+    const list = db.createGroceryList('Week of 13 April');
+    db.addGroceryItems(list.id, [{ name: 'garlic', quantity: 1, unit: 'clove', aisle: 'produce', recipes: [] }]);
+
+    await user.click(await screen.findByRole('button', { name: 'Make a grocery list' }));
+
+    expect(await screen.findByRole('checkbox', { name: '8 cloves garlic' })).toBeInTheDocument();
+    expect(groceries.create).not.toHaveBeenCalled();
   });
 });
 
