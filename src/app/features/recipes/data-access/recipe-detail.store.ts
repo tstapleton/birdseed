@@ -5,7 +5,9 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { withTracing } from '@tstapleton/plotline/store';
 import { EMPTY, catchError, exhaustMap, pipe, switchMap, tap } from 'rxjs';
 import { GroceryApi } from '../../../core/api/grocery-api';
-import { GroceryListSummary, Ingredient, Recipe } from '../../../core/api/models';
+import { MealPlanApi } from '../../../core/api/meal-plan-api';
+import { GroceryListSummary, Ingredient, Meal, Recipe } from '../../../core/api/models';
+import { fromIsoDate } from '../../../core/time/dates';
 import { RecipesApi } from '../../../core/api/recipes-api';
 import { Toaster } from '../../../core/notifications/toaster';
 import { aisleFor } from '../../../shared/kitchen/aisles';
@@ -19,6 +21,8 @@ interface RecipeDetailState {
   deletion: 'idle' | 'confirming' | 'deleting';
   /** The "add to grocery list" panel. */
   shopping: { open: boolean; status: 'loading' | 'ready' | 'adding'; lists: GroceryListSummary[] };
+  /** The "add to meal plan" panel. */
+  planning: { open: boolean; saving: boolean };
 }
 
 const initialState: RecipeDetailState = {
@@ -27,6 +31,7 @@ const initialState: RecipeDetailState = {
   servings: 1,
   deletion: 'idle',
   shopping: { open: false, status: 'loading', lists: [] },
+  planning: { open: false, saving: false },
 };
 
 /** Which list to add a recipe's ingredients to. */
@@ -56,6 +61,7 @@ export const RecipeDetailStore = signalStore(
       store,
       api = inject(RecipesApi),
       groceryApi = inject(GroceryApi),
+      mealPlanApi = inject(MealPlanApi),
       adder = inject(GroceryAdder),
       toaster = inject(Toaster),
       router = inject(Router),
@@ -144,6 +150,30 @@ export const RecipeDetailStore = signalStore(
           catchError(() => {
             patchState(store, { shopping: { ...store.shopping(), status: 'ready' } });
             toaster.error(`Couldn't add ${recipe.title} to the list`);
+            return EMPTY;
+          }),
+        );
+      }),
+    ),
+
+    togglePlanning(): void {
+      patchState(store, { planning: { open: !store.planning().open, saving: false } });
+    },
+
+    /** Plans this recipe, at the servings shown, for a day and meal. */
+    addToPlan: rxMethod<{ date: string; meal: Meal }>(
+      exhaustMap(({ date, meal }) => {
+        const recipe = store.recipe()!;
+        patchState(store, { planning: { open: true, saving: true } });
+        return mealPlanApi.add({ date, meal, recipeId: recipe.id, recipeTitle: recipe.title, servings: store.servings() }).pipe(
+          tap(() => {
+            patchState(store, { planning: { open: false, saving: false } });
+            const day = fromIsoDate(date).toLocaleDateString('en-GB', { weekday: 'long' });
+            toaster.success(`Planned ${recipe.title} for ${day} ${meal}`);
+          }),
+          catchError(() => {
+            patchState(store, { planning: { open: true, saving: false } });
+            toaster.error(`Couldn't plan ${recipe.title}`);
             return EMPTY;
           }),
         );

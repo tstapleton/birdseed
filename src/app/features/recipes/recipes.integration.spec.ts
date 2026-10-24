@@ -135,6 +135,31 @@ describe('Recipes', () => {
     });
   });
 
+  describe('planning a recipe', () => {
+    it('adds it to the meal plan for a day this week', async () => {
+      const { mealPlan, toaster, user } = await renderApp('/recipes/r-chicken-traybake');
+
+      await user.click(await screen.findByRole('button', { name: 'Add to meal plan' }));
+      const panel = screen.getByRole('form', { name: 'Add to meal plan' });
+      await user.selectOptions(within(panel).getByRole('combobox', { name: 'Day' }), 'Saturday 18 April');
+      await user.click(within(panel).getByRole('button', { name: 'Add to plan' }));
+
+      await screen.findByRole('button', { name: 'Add to meal plan', expanded: false });
+      expect(mealPlan.add).toHaveBeenCalledWith({
+        date: '2026-04-18',
+        meal: 'dinner',
+        recipeId: 'r-chicken-traybake',
+        recipeTitle: 'Chicken and vegetable traybake',
+        servings: 4,
+      });
+      expect(toaster.success).toHaveBeenCalledWith('Planned Chicken and vegetable traybake for Saturday dinner');
+
+      await user.click(screen.getByRole('link', { name: 'Meal plan' }));
+      const saturday = await screen.findByRole('region', { name: 'Saturday dinner' });
+      expect(await within(saturday).findByRole('link', { name: 'Chicken and vegetable traybake' })).toBeInTheDocument();
+    });
+  });
+
   describe('writing a recipe', () => {
     it('creates a recipe, pointing out what is missing first', async () => {
       const { recipes, toaster, user } = await renderApp('/recipes');

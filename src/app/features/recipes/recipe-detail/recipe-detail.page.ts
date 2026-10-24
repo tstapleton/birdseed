@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MEALS } from '../../../core/api/models';
+import { Clock } from '../../../core/time/clock';
+import { addDays, toIsoDate } from '../../../core/time/dates';
 import { RecipeDetailStore } from '../data-access/recipe-detail.store';
 
 @Component({
@@ -49,6 +52,7 @@ import { RecipeDetailStore } from '../data-access/recipe-detail.store';
             <button type="button" class="primary" [attr.aria-expanded]="store.shopping().open" (click)="store.shopping().open ? store.closeShopping() : store.openShopping()">
               Add to grocery list
             </button>
+            <button type="button" [attr.aria-expanded]="store.planning().open" (click)="store.togglePlanning()">Add to meal plan</button>
             <a class="button" [routerLink]="['/recipes', recipe.id, 'edit']">Edit</a>
             <button type="button" class="danger" (click)="store.askToDelete()">Delete</button>
           </div>
@@ -92,6 +96,34 @@ import { RecipeDetailStore } from '../data-access/recipe-detail.store';
                 <button type="button" (click)="store.closeShopping()">Cancel</button>
               </div>
             }
+          </form>
+        }
+
+        @if (store.planning().open) {
+          <form class="panel card card-body" aria-label="Add to meal plan" (submit)="$event.preventDefault(); store.addToPlan({ date: planDate.value, meal: $any(planMeal.value) })">
+            <div class="row">
+              <div class="field">
+                <label for="plan-date">Day</label>
+                <select id="plan-date" #planDate>
+                  @for (day of nextDays; track day.iso) {
+                    <option [value]="day.iso">{{ day.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="plan-meal">Meal</label>
+                <select id="plan-meal" #planMeal>
+                  @for (meal of meals; track meal) {
+                    <option [value]="meal" [selected]="meal === 'dinner'">{{ meal }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <p class="muted">For {{ store.servings() }} servings.</p>
+            <div class="row">
+              <button type="submit" class="primary" [disabled]="store.planning().saving">Add to plan</button>
+              <button type="button" (click)="store.togglePlanning()">Cancel</button>
+            </div>
           </form>
         }
 
@@ -155,6 +187,13 @@ export class RecipeDetailPage implements OnInit {
   /** The list picked in the panel: a list id, or 'new'. */
   protected readonly choice = signal('new');
   protected readonly newListName = signal('');
+  protected readonly meals = MEALS;
+  /** Today and the six days after it. */
+  protected readonly nextDays = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(inject(Clock).today(), i);
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : day.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    return { iso: toIsoDate(day), label };
+  });
 
   constructor() {
     // Default to the newest list once the panel has loaded them.
