@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RecipesStore } from '../data-access/recipes.store';
 import { RecipeCardComponent } from './recipe-card.component';
+import { RecipeFiltersComponent } from './recipe-filters.component';
 
 @Component({
   selector: 'app-recipe-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RecipeCardComponent],
+  imports: [RouterLink, RecipeCardComponent, RecipeFiltersComponent],
   providers: [RecipesStore],
   template: `
     <div class="page-head">
@@ -19,21 +20,7 @@ import { RecipeCardComponent } from './recipe-card.component';
       <a class="button primary" routerLink="/recipes/new">New recipe</a>
     </div>
 
-    <div class="filters">
-      <input
-        type="search"
-        aria-label="Search recipes"
-        placeholder="Search by name, description or tag"
-        [value]="store.search()"
-        (input)="store.setSearch($any($event.target).value)"
-      />
-      <div class="row" role="group" aria-label="Filter by tag">
-        <button type="button" class="chip" [attr.aria-pressed]="store.favoritesOnly()" (click)="store.toggleFavoritesOnly()">★ Favourites</button>
-        @for (tag of store.tags(); track tag) {
-          <button type="button" class="chip" [attr.aria-pressed]="store.selectedTags().includes(tag)" (click)="store.toggleTag(tag)">{{ tag }}</button>
-        }
-      </div>
-    </div>
+    <app-recipe-filters />
 
     @switch (store.status()) {
       @case ('loading') {
@@ -67,8 +54,6 @@ import { RecipeCardComponent } from './recipe-card.component';
     }
   `,
   styles: `
-    .filters { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-    .filters input { max-width: 420px; }
     .grid { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
     .empty { display: flex; flex-direction: column; align-items: center; gap: 12px; }
   `,
