@@ -4,19 +4,33 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { withTracing } from '@tstapleton/plotline/store';
 import { EMPTY, catchError, exhaustMap, pipe, switchMap, tap } from 'rxjs';
-import { Recipe } from '../../../core/api/models';
+import { GroceryApi } from '../../../core/api/grocery-api';
+import { GroceryListSummary, Ingredient, Recipe } from '../../../core/api/models';
 import { RecipesApi } from '../../../core/api/recipes-api';
 import { Toaster } from '../../../core/notifications/toaster';
+import { aisleFor } from '../../../shared/kitchen/aisles';
 import { formatAmount, scale } from '../../../shared/kitchen/units';
+import { GroceryAdder } from '../../groceries/data-access/grocery-adder';
 
 interface RecipeDetailState {
   recipe: Recipe | null;
   status: 'loading' | 'loaded' | 'missing' | 'error';
   servings: number;
   deletion: 'idle' | 'confirming' | 'deleting';
+  /** The "add to grocery list" panel. */
+  shopping: { open: boolean; status: 'loading' | 'ready' | 'adding'; lists: GroceryListSummary[] };
 }
 
-const initialState: RecipeDetailState = { recipe: null, status: 'loading', servings: 1, deletion: 'idle' };
+const initialState: RecipeDetailState = {
+  recipe: null,
+  status: 'loading',
+  servings: 1,
+  deletion: 'idle',
+  shopping: { open: false, status: 'loading', lists: [] },
+};
+
+/** Which list to add a recipe's ingredients to. */
+export type ShoppingTarget = { listId: string } | { newListName: string };
 
 export interface ScaledIngredient {
   name: string;
@@ -29,15 +43,23 @@ export const RecipeDetailStore = signalStore(
   withState(initialState),
   withComputed((store) => {
     const factor = computed(() => store.servings() / (store.recipe()?.servings ?? 1));
+    const scaled = computed<Ingredient[]>(() => (store.recipe()?.ingredients ?? []).map((i) => ({ ...i, ...scale(i, factor()) })));
     return {
       factor,
-      ingredients: computed<ScaledIngredient[]>(() =>
-        (store.recipe()?.ingredients ?? []).map((i) => ({ name: i.name, amount: formatAmount(scale(i, factor())), note: i.note })),
-      ),
+      scaled,
+      ingredients: computed<ScaledIngredient[]>(() => scaled().map((i) => ({ name: i.name, amount: formatAmount(i), note: i.note }))),
       totalMinutes: computed(() => (store.recipe()?.prepMinutes ?? 0) + (store.recipe()?.cookMinutes ?? 0)),
     };
   }),
-  withMethods((store, api = inject(RecipesApi), toaster = inject(Toaster), router = inject(Router)) => ({
+  withMethods(
+    (
+      store,
+      api = inject(RecipesApi),
+      groceryApi = inject(GroceryApi),
+      adder = inject(GroceryAdder),
+      toaster = inject(Toaster),
+      router = inject(Router),
+    ) => ({
     load: rxMethod<string>(
       pipe(
         tap(() => patchState(store, { status: 'loading', recipe: null, deletion: 'idle' })),
@@ -78,6 +100,50 @@ export const RecipeDetailStore = signalStore(
           catchError(() => {
             patchState(store, { deletion: 'idle' });
             toaster.error(`Couldn't delete ${recipe.title}`);
+            return EMPTY;
+          }),
+        );
+      }),
+    ),
+
+    openShopping: rxMethod<void>(
+      switchMap(() => {
+        patchState(store, { shopping: { open: true, status: 'loading', lists: [] } });
+        return groceryApi.lists().pipe(
+          tap((lists) => patchState(store, { shopping: { open: true, status: 'ready', lists } })),
+          catchError(() => {
+            patchState(store, { shopping: { open: true, status: 'ready', lists: [] } });
+            return EMPTY;
+          }),
+        );
+      }),
+    ),
+
+    closeShopping(): void {
+      patchState(store, { shopping: { ...store.shopping(), open: false } });
+    },
+
+    /** Adds the ingredients, scaled to the servings shown, to a list. */
+    addToGroceryList: rxMethod<ShoppingTarget>(
+      exhaustMap((target) => {
+        const recipe = store.recipe()!;
+        const items = store.scaled().map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          unit: i.unit,
+          aisle: aisleFor(i.name),
+          recipes: [recipe.title],
+        }));
+        patchState(store, { shopping: { ...store.shopping(), status: 'adding' } });
+        const adding = 'listId' in target ? adder.addToList(target.listId, items) : adder.createList(target.newListName.trim(), items);
+        return adding.pipe(
+          tap(({ list }) => {
+            patchState(store, { shopping: { ...store.shopping(), open: false, status: 'ready' } });
+            toaster.success(`Added ${recipe.title} to ${list.name}`);
+          }),
+          catchError(() => {
+            patchState(store, { shopping: { ...store.shopping(), status: 'ready' } });
+            toaster.error(`Couldn't add ${recipe.title} to the list`);
             return EMPTY;
           }),
         );

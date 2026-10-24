@@ -92,6 +92,49 @@ describe('Recipes', () => {
     });
   });
 
+  describe('shopping for a recipe', () => {
+    it('adds the ingredients to an existing list, topping up what is already there', async () => {
+      const { groceries, toaster, user } = await renderApp('/recipes/r-overnight-oats');
+
+      await user.click(await screen.findByRole('button', { name: 'Add to grocery list' }));
+      const panel = await screen.findByRole('form', { name: 'Add to grocery list' });
+      expect(await within(panel).findByRole('combobox', { name: 'Grocery list' })).toHaveDisplayValue('Weekly shop');
+      await user.click(within(panel).getByRole('button', { name: 'Add ingredients' }));
+
+      await screen.findByRole('button', { name: 'Add to grocery list', expanded: false });
+      expect(toaster.success).toHaveBeenCalledWith('Added Overnight oats to Weekly shop');
+      expect(groceries.updateItem).toHaveBeenCalledWith('g-weekly', 'i-1', expect.objectContaining({ quantity: 2.12, unit: 'l', recipes: ['Overnight oats'] }));
+
+      await user.click(screen.getByRole('link', { name: 'Groceries' }));
+      await user.click(await screen.findByRole('link', { name: /Weekly shop/ }));
+      expect(await screen.findByRole('checkbox', { name: '50 g rolled oats' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: '2.12 l milk' })).toBeInTheDocument();
+    });
+
+    it('starts a new list with the ingredients scaled to the servings', async () => {
+      const { groceries, user } = await renderApp('/recipes/r-shakshuka');
+
+      await user.click(await screen.findByRole('button', { name: 'More servings' }));
+      await user.click(screen.getByRole('button', { name: 'More servings' }));
+      await user.click(screen.getByRole('button', { name: 'Add to grocery list' }));
+      await user.selectOptions(await screen.findByRole('combobox', { name: 'Grocery list' }), 'New list…');
+      const name = screen.getByRole('textbox', { name: 'New list name' });
+      await user.clear(name);
+      await user.type(name, 'Brunch');
+      await user.click(screen.getByRole('button', { name: 'Add ingredients' }));
+
+      await screen.findByRole('button', { name: 'Add to grocery list', expanded: false });
+      expect(groceries.create).toHaveBeenCalledWith('Brunch');
+      expect(groceries.addItems).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining([
+          { name: 'eggs', quantity: 8, unit: 'piece', aisle: 'dairy', recipes: ['Shakshuka'] },
+          { name: 'smoked paprika', quantity: 2, unit: 'tsp', aisle: 'spices', recipes: ['Shakshuka'] },
+        ]),
+      );
+    });
+  });
+
   describe('writing a recipe', () => {
     it('creates a recipe, pointing out what is missing first', async () => {
       const { recipes, toaster, user } = await renderApp('/recipes');

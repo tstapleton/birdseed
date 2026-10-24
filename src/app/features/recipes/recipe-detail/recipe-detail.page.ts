@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RecipeDetailStore } from '../data-access/recipe-detail.store';
 
@@ -46,6 +46,9 @@ import { RecipeDetailStore } from '../data-access/recipe-detail.store';
             </dl>
           </div>
           <div class="actions row">
+            <button type="button" class="primary" [attr.aria-expanded]="store.shopping().open" (click)="store.shopping().open ? store.closeShopping() : store.openShopping()">
+              Add to grocery list
+            </button>
             <a class="button" [routerLink]="['/recipes', recipe.id, 'edit']">Edit</a>
             <button type="button" class="danger" (click)="store.askToDelete()">Delete</button>
           </div>
@@ -59,6 +62,37 @@ import { RecipeDetailStore } from '../data-access/recipe-detail.store';
               <button type="button" (click)="store.cancelDelete()">Cancel</button>
             </div>
           </div>
+        }
+
+        @if (store.shopping().open) {
+          <form class="panel card card-body" aria-label="Add to grocery list" (submit)="$event.preventDefault(); addToList()">
+            @if (store.shopping().status === 'loading') {
+              <p role="status">Loading your lists…</p>
+            } @else {
+              <div class="row">
+                <div class="field">
+                  <label for="list-choice">Grocery list</label>
+                  <select id="list-choice" (change)="choice.set($any($event.target).value)">
+                    @for (list of store.shopping().lists; track list.id) {
+                      <option [value]="list.id" [selected]="list.id === choice()">{{ list.name }}</option>
+                    }
+                    <option value="new" [selected]="choice() === 'new'">New list…</option>
+                  </select>
+                </div>
+                @if (choice() === 'new') {
+                  <div class="field">
+                    <label for="new-list-name">New list name</label>
+                    <input id="new-list-name" [value]="newListName() || recipe.title" (input)="newListName.set($any($event.target).value)" />
+                  </div>
+                }
+              </div>
+              <p class="muted">Adds {{ store.ingredients().length }} ingredients for {{ store.servings() }} servings. Anything already on the list is topped up.</p>
+              <div class="row">
+                <button type="submit" class="primary" [disabled]="store.shopping().status === 'adding'">Add ingredients</button>
+                <button type="button" (click)="store.closeShopping()">Cancel</button>
+              </div>
+            }
+          </form>
         }
 
         <div class="columns">
@@ -102,6 +136,8 @@ import { RecipeDetailStore } from '../data-access/recipe-detail.store';
     .times dd { margin: 0; font-weight: 600; }
     .actions { align-self: flex-start; }
     .confirm { padding: 14px 16px; margin-bottom: 20px; border-color: var(--danger); background: var(--danger-soft); display: flex; flex-direction: column; gap: 10px; }
+    .panel { margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .panel .row { align-items: flex-end; }
     .columns { display: grid; gap: 16px; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
     @media (max-width: 760px) { .columns { grid-template-columns: 1fr; } }
     .section-head { margin-bottom: 12px; }
@@ -116,8 +152,24 @@ import { RecipeDetailStore } from '../data-access/recipe-detail.store';
 export class RecipeDetailPage implements OnInit {
   readonly id = input.required<string>();
   protected readonly store = inject(RecipeDetailStore);
+  /** The list picked in the panel: a list id, or 'new'. */
+  protected readonly choice = signal('new');
+  protected readonly newListName = signal('');
+
+  constructor() {
+    // Default to the newest list once the panel has loaded them.
+    effect(() => {
+      const { status, lists } = this.store.shopping();
+      if (status === 'ready') this.choice.set(lists[0]?.id ?? 'new');
+    });
+  }
 
   ngOnInit(): void {
     this.store.load(this.id());
+  }
+
+  protected addToList(): void {
+    const choice = this.choice();
+    this.store.addToGroceryList(choice === 'new' ? { newListName: this.newListName() || this.store.recipe()!.title } : { listId: choice });
   }
 }
