@@ -10,6 +10,7 @@ describe('units', () => {
 
   it('converts within a family, keeping the larger unit when it reads well', () => {
     expect(combine({ quantity: 1, unit: 'kg' }, { quantity: 500, unit: 'g' })).toEqual({ quantity: 1.5, unit: 'kg' });
+    expect(combine({ quantity: 2, unit: 'l' }, { quantity: 120, unit: 'ml' })).toEqual({ quantity: 2.12, unit: 'l' });
     expect(combine({ quantity: 1, unit: 'tbsp' }, { quantity: 1, unit: 'tsp' })).toEqual({ quantity: 20, unit: 'ml' });
   });
 

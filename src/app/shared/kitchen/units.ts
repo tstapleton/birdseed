@@ -15,6 +15,9 @@ function familyOf(unit: Unit | null): Partial<Record<Unit, number>> | undefined 
   return Object.values(FAMILIES).find((f) => unit !== null && unit in f);
 }
 
+/** Metric units read fine with decimals (2.12 l); spoons and cups need tidy fractions. */
+const METRIC: Unit[] = ['g', 'kg', 'ml', 'l'];
+
 /**
  * Adds two amounts of the same ingredient, or returns null when they can't be added
  * (say 2 cloves and 10 g). The result uses the larger of the two units when it reads
@@ -29,7 +32,8 @@ export function combine(a: Amount, b: Amount): Amount | null {
   const total = a.quantity * family[a.unit!]! + b.quantity * family[b.unit!]!;
   const larger = family[a.unit!]! >= family[b.unit!]! ? a.unit! : b.unit!;
   const inLarger = total / family[larger]!;
-  const unit = Number.isInteger(round(inLarger * 4)) ? larger : (Object.keys(family)[0] as Unit);
+  const readsWell = METRIC.includes(larger) ? inLarger >= 1 : Number.isInteger(round(inLarger * 4));
+  const unit = readsWell ? larger : (Object.keys(family)[0] as Unit);
   return { quantity: round(total / family[unit]!), unit };
 }
 
