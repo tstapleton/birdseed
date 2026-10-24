@@ -38,14 +38,19 @@ with `read:packages` and add it to your user `~/.npmrc`:
 ```
 src/app/
   core/         The "host app": API clients and transport, models, clock, toasts, mock backend
-  shared/       Kitchen logic with no Angular in it: units, ingredient parsing, aisles, merging
+  shared/       kitchen/: logic with no Angular in it (units, ingredient parsing, aisles, merging)
+                ui/: small reusable components
   features/
     recipes/    Collection, recipe page, editor (RecipesStore, RecipeDetailStore, RecipeEditorStore)
     groceries/  Lists and a list (GroceryListsStore, GroceryListStore, GroceryAdder)
     meal-plan/  The week view (MealPlanStore)
 ```
 
-Each feature keeps its state in a SignalStore provided by the page that uses it.
+Each feature keeps its state in a SignalStore provided by the page that uses it. Pages are
+split into components: presentational ones take inputs and emit outputs (the recipe
+header, an aisle of a grocery list), while interactive sections such as the "Add to
+grocery list" panel or a meal slot use the page's store directly. Shared UI (a confirm
+panel, a stepper) lives in `shared/ui`.
 
 ## Tests
 
@@ -56,8 +61,10 @@ be tested inside a larger app.
 
 ## Behaviour diffs with plotline
 
-Each store is marked with `withTracing('…')`, and the test harness names the mocked
-services with `traced(…)`. Then:
+Each store is marked with `withTracing('…')`, and the test harness
+(`src/testing/render-app.ts`) calls `recordPlotline()` and names the mocked services with
+`traced(…)`. There's no Jest config for it: only specs that use the harness are recorded.
+Then:
 
 ```bash
 npm run test:plotline     # writes plotline/<spec>/<test>.md, one sequence diagram per test
