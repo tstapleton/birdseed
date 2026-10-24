@@ -1,33 +1,32 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
 import { Recipe, RecipeDraft, RecipeSummary } from './models';
+import { Transport } from './transport';
 
 @Injectable({ providedIn: 'root' })
 export class RecipesApi {
-  private readonly http = inject(HttpClient);
+  private readonly transport = inject(Transport);
 
-  list(): Observable<RecipeSummary[]> {
-    return this.http.get<RecipeSummary[]>('/api/recipes');
+  list(): Promise<RecipeSummary[]> {
+    return this.transport.send({ method: 'GET', path: '/recipes' });
   }
 
-  get(id: string): Observable<Recipe> {
-    return this.http.get<Recipe>(`/api/recipes/${id}`);
+  get(id: string): Promise<Recipe> {
+    return this.transport.send({ method: 'GET', path: `/recipes/${id}` });
   }
 
-  create(draft: RecipeDraft): Observable<Recipe> {
-    return this.http.post<Recipe>('/api/recipes', draft);
+  create(draft: RecipeDraft): Promise<Recipe> {
+    return this.transport.send({ method: 'POST', path: '/recipes', body: draft });
   }
 
-  update(id: string, draft: RecipeDraft): Observable<Recipe> {
-    return this.http.put<Recipe>(`/api/recipes/${id}`, draft);
+  update(id: string, draft: RecipeDraft): Promise<Recipe> {
+    return this.transport.send({ method: 'PUT', path: `/recipes/${id}`, body: draft });
   }
 
-  setFavorite(id: string, favorite: boolean): Observable<RecipeSummary> {
-    return this.http.patch<RecipeSummary>(`/api/recipes/${id}`, { favorite });
+  setFavorite(id: string, favorite: boolean): Promise<RecipeSummary> {
+    return this.transport.send({ method: 'PATCH', path: `/recipes/${id}`, body: { favorite } });
   }
 
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`/api/recipes/${id}`);
+  delete(id: string): Promise<void> {
+    return this.transport.send({ method: 'DELETE', path: `/recipes/${id}` });
   }
 }

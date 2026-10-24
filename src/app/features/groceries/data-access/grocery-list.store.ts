@@ -1,9 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { withTracing } from '@tstapleton/plotline/store';
-import { EMPTY, catchError, concatMap, exhaustMap, mergeMap, pipe, switchMap, tap } from 'rxjs';
 import { GroceryApi } from '../../../core/api/grocery-api';
 import { AISLES, Aisle, GroceryItem, GroceryList } from '../../../core/api/models';
 import { Toaster } from '../../../core/notifications/toaster';
@@ -58,77 +56,68 @@ export const GroceryListStore = signalStore(
     const setList = (list: GroceryList) => patchState(store, { list });
     const listId = () => store.list()!.id;
 
+    /** Adds run one at a time, so each sees the list the previous one left. */
+    let adding = Promise.resolve();
+
     return {
-      load: rxMethod<string>(
-        pipe(
-          tap(() => patchState(store, { status: 'loading' })),
-          switchMap((id) =>
-            api.get(id).pipe(
-              tap((list) => patchState(store, { list, status: 'loaded' })),
-              catchError(() => {
-                patchState(store, { status: 'missing' });
-                return EMPTY;
-              }),
-            ),
-          ),
-        ),
-      ),
+      async load(id: string): Promise<void> {
+        patchState(store, { status: 'loading' });
+        try {
+          patchState(store, { list: await api.get(id), status: 'loaded' });
+        } catch {
+          patchState(store, { status: 'missing' });
+        }
+      },
 
       /** Free text such as "2 kg potatoes"; several items can be separated by commas. */
-      addFromText: rxMethod<string>(
-        concatMap((text) => {
-          const items = text
-            .split(/[,\n]/)
-            .map(parseIngredientLine)
-            .filter((p) => p !== null)
-            .map((p) => ({ ...p, aisle: aisleFor(p.name), recipes: [] }));
-          if (!items.length) return EMPTY;
-          return adder.addToList(listId(), items).pipe(
-            tap(({ list }) => setList(list)),
-            catchError(() => {
-              toaster.error('That could not be added');
-              return EMPTY;
-            }),
-          );
-        }),
-      ),
+      addFromText(text: string): Promise<void> {
+        const items = text
+          .split(/[,\n]/)
+          .map(parseIngredientLine)
+          .filter((p) => p !== null)
+          .map((p) => ({ ...p, aisle: aisleFor(p.name), recipes: [] }));
+        if (!items.length) return adding;
+        adding = adding.then(async () => {
+          try {
+            setList((await adder.addToList(listId(), items)).list);
+          } catch {
+            toaster.error('That could not be added');
+          }
+        });
+        return adding;
+      },
 
       /** Optimistic: the tick shows at once. */
-      toggle: rxMethod<string>(
-        mergeMap((itemId) => {
-          const item = store.list()!.items.find((i) => i.id === itemId)!;
-          const checked = !item.checked;
-          setList({ ...store.list()!, items: store.list()!.items.map((i) => (i.id === itemId ? { ...i, checked } : i)) });
-          return api.updateItem(listId(), itemId, { checked }).pipe(
-            catchError(() => {
-              setList({ ...store.list()!, items: store.list()!.items.map((i) => (i.id === itemId ? { ...i, checked: !checked } : i)) });
-              toaster.error(`Couldn't update ${item.name}`);
-              return EMPTY;
-            }),
-          );
-        }),
-      ),
+      async toggle(itemId: string): Promise<void> {
+        const item = store.list()!.items.find((i) => i.id === itemId)!;
+        const checked = !item.checked;
+        const setChecked = (value: boolean) =>
+          setList({ ...store.list()!, items: store.list()!.items.map((i) => (i.id === itemId ? { ...i, checked: value } : i)) });
+        setChecked(checked);
+        try {
+          await api.updateItem(listId(), itemId, { checked });
+        } catch {
+          setChecked(!checked);
+          toaster.error(`Couldn't update ${item.name}`);
+        }
+      },
 
-      remove: rxMethod<string>(
-        mergeMap((itemId) =>
-          api.removeItem(listId(), itemId).pipe(
-            tap(setList),
-            catchError(() => EMPTY),
-          ),
-        ),
-      ),
+      async remove(itemId: string): Promise<void> {
+        try {
+          setList(await api.removeItem(listId(), itemId));
+        } catch {
+          toaster.error('That could not be removed');
+        }
+      },
 
-      clearChecked: rxMethod<void>(
-        exhaustMap(() =>
-          api.clearChecked(listId()).pipe(
-            tap((list) => {
-              setList(list);
-              toaster.success('Cleared the basket');
-            }),
-            catchError(() => EMPTY),
-          ),
-        ),
-      ),
+      async clearChecked(): Promise<void> {
+        try {
+          setList(await api.clearChecked(listId()));
+          toaster.success('Cleared the basket');
+        } catch {
+          toaster.error('The basket could not be cleared');
+        }
+      },
 
       toggleGrouping(): void {
         patchState(store, { groupByAisle: !store.groupByAisle() });
@@ -142,22 +131,18 @@ export const GroceryListStore = signalStore(
         patchState(store, { deletion: 'idle' });
       },
 
-      delete: rxMethod<void>(
-        exhaustMap(() => {
-          const list = store.list()!;
-          patchState(store, { deletion: 'deleting' });
-          return api.delete(list.id).pipe(
-            tap(() => {
-              toaster.success(`Deleted ${list.name}`);
-              void router.navigateByUrl('/groceries');
-            }),
-            catchError(() => {
-              patchState(store, { deletion: 'idle' });
-              return EMPTY;
-            }),
-          );
-        }),
-      ),
+      async delete(): Promise<void> {
+        const list = store.list()!;
+        if (store.deletion() === 'deleting') return;
+        patchState(store, { deletion: 'deleting' });
+        try {
+          await api.delete(list.id);
+          toaster.success(`Deleted ${list.name}`);
+          await router.navigateByUrl('/groceries');
+        } catch {
+          patchState(store, { deletion: 'idle' });
+        }
+      },
     };
   }),
   withTracing('Grocery list store'),

@@ -1,8 +1,6 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { withTracing } from '@tstapleton/plotline/store';
-import { EMPTY, catchError, exhaustMap, mergeMap, pipe, tap } from 'rxjs';
 import { RecipeSummary } from '../../../core/api/models';
 import { RecipesApi } from '../../../core/api/recipes-api';
 import { Toaster } from '../../../core/notifications/toaster';
@@ -34,59 +32,54 @@ export const RecipesStore = signalStore(
     }),
     filtered: computed(() => !!store.search().trim() || store.selectedTags().length > 0 || store.favoritesOnly()),
   })),
-  withMethods((store, api = inject(RecipesApi), toaster = inject(Toaster)) => ({
-    load: rxMethod<void>(
-      pipe(
-        tap(() => patchState(store, { status: 'loading' })),
-        exhaustMap(() =>
-          api.list().pipe(
-            tap((recipes) => patchState(store, { recipes, status: 'loaded' })),
-            catchError(() => {
-              patchState(store, { status: 'error' });
-              toaster.error('Recipes could not be loaded');
-              return EMPTY;
-            }),
-          ),
-        ),
-      ),
-    ),
+  withMethods((store, api = inject(RecipesApi), toaster = inject(Toaster)) => {
+    const setFavorite = (id: string, favorite: boolean) =>
+      patchState(store, { recipes: store.recipes().map((r) => (r.id === id ? { ...r, favorite } : r)) });
 
-    setSearch(search: string): void {
-      patchState(store, { search });
-    },
+    return {
+      async load(): Promise<void> {
+        if (store.status() === 'loading') return;
+        patchState(store, { status: 'loading' });
+        try {
+          patchState(store, { recipes: await api.list(), status: 'loaded' });
+        } catch {
+          patchState(store, { status: 'error' });
+          toaster.error('Recipes could not be loaded');
+        }
+      },
 
-    toggleTag(tag: string): void {
-      const selected = store.selectedTags();
-      patchState(store, { selectedTags: selected.includes(tag) ? selected.filter((t) => t !== tag) : [...selected, tag] });
-    },
+      setSearch(search: string): void {
+        patchState(store, { search });
+      },
 
-    toggleFavoritesOnly(): void {
-      patchState(store, { favoritesOnly: !store.favoritesOnly() });
-    },
+      toggleTag(tag: string): void {
+        const selected = store.selectedTags();
+        patchState(store, { selectedTags: selected.includes(tag) ? selected.filter((t) => t !== tag) : [...selected, tag] });
+      },
 
-    clearFilters(): void {
-      patchState(store, { search: '', selectedTags: [], favoritesOnly: false });
-    },
+      toggleFavoritesOnly(): void {
+        patchState(store, { favoritesOnly: !store.favoritesOnly() });
+      },
 
-    /** Optimistic: the star changes at once and reverts if saving fails. */
-    toggleFavorite: rxMethod<string>(
-      mergeMap((id) => {
+      clearFilters(): void {
+        patchState(store, { search: '', selectedTags: [], favoritesOnly: false });
+      },
+
+      /** Optimistic: the star changes at once and reverts if saving fails. */
+      async toggleFavorite(id: string): Promise<void> {
         const recipe = store.recipes().find((r) => r.id === id);
-        if (!recipe) return EMPTY;
+        if (!recipe) return;
         const favorite = !recipe.favorite;
-        const setFavorite = (value: boolean) =>
-          patchState(store, { recipes: store.recipes().map((r) => (r.id === id ? { ...r, favorite: value } : r)) });
-        setFavorite(favorite);
-        return api.setFavorite(id, favorite).pipe(
-          catchError(() => {
-            setFavorite(!favorite);
-            toaster.error(`Couldn't update ${recipe.title}`);
-            return EMPTY;
-          }),
-        );
-      }),
-    ),
-  })),
+        setFavorite(id, favorite);
+        try {
+          await api.setFavorite(id, favorite);
+        } catch {
+          setFavorite(id, !favorite);
+          toaster.error(`Couldn't update ${recipe.title}`);
+        }
+      },
+    };
+  }),
   withTracing('Recipes store'),
-  withHooks({ onInit: (store) => store.load() }),
+  withHooks({ onInit: (store) => void store.load() }),
 );

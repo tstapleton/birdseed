@@ -1,41 +1,40 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
 import { GroceryItem, GroceryList, GroceryListSummary, NewGroceryItem } from './models';
+import { Transport } from './transport';
 
 @Injectable({ providedIn: 'root' })
 export class GroceryApi {
-  private readonly http = inject(HttpClient);
+  private readonly transport = inject(Transport);
 
-  lists(): Observable<GroceryListSummary[]> {
-    return this.http.get<GroceryListSummary[]>('/api/grocery-lists');
+  lists(): Promise<GroceryListSummary[]> {
+    return this.transport.send({ method: 'GET', path: '/grocery-lists' });
   }
 
-  get(id: string): Observable<GroceryList> {
-    return this.http.get<GroceryList>(`/api/grocery-lists/${id}`);
+  get(id: string): Promise<GroceryList> {
+    return this.transport.send({ method: 'GET', path: `/grocery-lists/${id}` });
   }
 
-  create(name: string): Observable<GroceryList> {
-    return this.http.post<GroceryList>('/api/grocery-lists', { name });
+  create(name: string): Promise<GroceryList> {
+    return this.transport.send({ method: 'POST', path: '/grocery-lists', body: { name } });
   }
 
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`/api/grocery-lists/${id}`);
+  delete(id: string): Promise<void> {
+    return this.transport.send({ method: 'DELETE', path: `/grocery-lists/${id}` });
   }
 
-  addItems(listId: string, items: NewGroceryItem[]): Observable<GroceryList> {
-    return this.http.post<GroceryList>(`/api/grocery-lists/${listId}/items`, items);
+  addItems(listId: string, items: NewGroceryItem[]): Promise<GroceryList> {
+    return this.transport.send({ method: 'POST', path: `/grocery-lists/${listId}/items`, body: items });
   }
 
-  updateItem(listId: string, itemId: string, patch: Partial<Omit<GroceryItem, 'id'>>): Observable<GroceryList> {
-    return this.http.patch<GroceryList>(`/api/grocery-lists/${listId}/items/${itemId}`, patch);
+  updateItem(listId: string, itemId: string, patch: Partial<Omit<GroceryItem, 'id'>>): Promise<GroceryList> {
+    return this.transport.send({ method: 'PATCH', path: `/grocery-lists/${listId}/items/${itemId}`, body: patch });
   }
 
-  removeItem(listId: string, itemId: string): Observable<GroceryList> {
-    return this.http.delete<GroceryList>(`/api/grocery-lists/${listId}/items/${itemId}`);
+  removeItem(listId: string, itemId: string): Promise<GroceryList> {
+    return this.transport.send({ method: 'DELETE', path: `/grocery-lists/${listId}/items/${itemId}` });
   }
 
-  clearChecked(listId: string): Observable<GroceryList> {
-    return this.http.post<GroceryList>(`/api/grocery-lists/${listId}/clear-checked`, {});
+  clearChecked(listId: string): Promise<GroceryList> {
+    return this.transport.send({ method: 'POST', path: `/grocery-lists/${listId}/clear-checked` });
   }
 }

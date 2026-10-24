@@ -1,9 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { withTracing } from '@tstapleton/plotline/store';
-import { EMPTY, catchError, exhaustMap, pipe, switchMap, tap } from 'rxjs';
 import { Recipe, RecipeDraft, Unit } from '../../../core/api/models';
 import { RecipesApi } from '../../../core/api/recipes-api';
 import { Toaster } from '../../../core/notifications/toaster';
@@ -120,20 +118,15 @@ export const RecipeEditorStore = signalStore(
     const blankIngredient = (key: number): IngredientRow => ({ key, quantity: '', unit: '', name: '', note: '' });
 
     return {
-      edit: rxMethod<string>(
-        pipe(
-          tap((id) => patchState(store, { mode: 'edit', recipeId: id, status: 'loading' })),
-          switchMap((id) =>
-            api.get(id).pipe(
-              tap((recipe) => patchState(store, { ...toForm(recipe, store.nextKey()), status: 'ready' })),
-              catchError(() => {
-                patchState(store, { status: 'missing' });
-                return EMPTY;
-              }),
-            ),
-          ),
-        ),
-      ),
+      async edit(id: string): Promise<void> {
+        patchState(store, { mode: 'edit', recipeId: id, status: 'loading' });
+        try {
+          const recipe = await api.get(id);
+          patchState(store, { ...toForm(recipe, store.nextKey()), status: 'ready' });
+        } catch {
+          patchState(store, { status: 'missing' });
+        }
+      },
 
       setField<K extends keyof RecipeForm>(field: K, value: RecipeForm[K]): void {
         patchState(store, { form: { ...store.form(), [field]: value } });
@@ -186,26 +179,21 @@ export const RecipeEditorStore = signalStore(
         patchState(store, { steps: [{ key: key!, text: '' }], nextKey });
       },
 
-      save: rxMethod<void>(
-        exhaustMap(() => {
-          patchState(store, { submitted: true });
-          if (!store.valid()) return EMPTY;
-          patchState(store, { status: 'saving' });
-          const id = store.recipeId();
-          const request = store.mode() === 'edit' && id ? api.update(id, store.draft()) : api.create(store.draft());
-          return request.pipe(
-            tap((recipe) => {
-              toaster.success(`Saved ${recipe.title}`);
-              void router.navigate(['/recipes', recipe.id]);
-            }),
-            catchError(() => {
-              patchState(store, { status: 'ready' });
-              toaster.error('The recipe could not be saved');
-              return EMPTY;
-            }),
-          );
-        }),
-      ),
+      async save(): Promise<void> {
+        if (store.status() === 'saving') return;
+        patchState(store, { submitted: true });
+        if (!store.valid()) return;
+        patchState(store, { status: 'saving' });
+        const id = store.recipeId();
+        try {
+          const recipe = store.mode() === 'edit' && id ? await api.update(id, store.draft()) : await api.create(store.draft());
+          toaster.success(`Saved ${recipe.title}`);
+          await router.navigate(['/recipes', recipe.id]);
+        } catch {
+          patchState(store, { status: 'ready' });
+          toaster.error('The recipe could not be saved');
+        }
+      },
     };
   }),
   withTracing('Recipe editor store'),

@@ -1,15 +1,14 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { render } from '@testing-library/angular';
 import { provideTracing, recordPlotline, traced } from '@tstapleton/plotline/jest';
 import userEvent from '@testing-library/user-event';
-import { Observable, defer, map, timer } from 'rxjs';
 import { App } from '../app/app';
 import { routes } from '../app/app.routes';
 import { GroceryApi } from '../app/core/api/grocery-api';
 import { MealPlanApi } from '../app/core/api/meal-plan-api';
 import { RecipesApi } from '../app/core/api/recipes-api';
+import { ApiError } from '../app/core/api/transport';
 import { MockDatabase, NotFoundError } from '../app/core/mock-backend/mock-database';
 import { Toaster } from '../app/core/notifications/toaster';
 import { Clock } from '../app/core/time/clock';
@@ -27,19 +26,17 @@ const HOST = 'Backend and host services (mocked)';
 
 /**
  * Like the real backend, but in memory and answering a few milliseconds later. Errors
- * from the database surface as HTTP errors, as they would from the server.
+ * from the database surface as API errors, as they would from the server.
  */
-function respond<T>(answer: () => T): Observable<T> {
-  return defer(() =>
-    timer(5).pipe(
-      map(() => {
-        try {
-          return structuredClone(answer());
-        } catch (error) {
-          throw new HttpErrorResponse({ status: error instanceof NotFoundError ? 404 : 500, error: String(error) });
-        }
-      }),
-    ),
+function respond<T>(answer: () => T): Promise<T> {
+  return new Promise((resolve, reject) =>
+    setTimeout(() => {
+      try {
+        resolve(structuredClone(answer()));
+      } catch (error) {
+        reject(new ApiError(error instanceof NotFoundError ? 404 : 500, String(error)));
+      }
+    }, 5),
   );
 }
 

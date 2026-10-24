@@ -1,9 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { withTracing } from '@tstapleton/plotline/store';
-import { EMPTY, catchError, exhaustMap, forkJoin, map, mergeMap, pipe, switchMap, tap } from 'rxjs';
 import { MealPlanApi } from '../../../core/api/meal-plan-api';
 import { MEALS, Meal, NewGroceryItem, PlannedMeal, Recipe, RecipeSummary } from '../../../core/api/models';
 import { RecipesApi } from '../../../core/api/recipes-api';
@@ -62,40 +60,37 @@ export const MealPlanStore = signalStore(
       router = inject(Router),
     ) => {
       const replace = (meal: PlannedMeal) => patchState(store, { meals: store.meals().map((m) => (m.id === meal.id ? meal : m)) });
+      /** Counts loads, so a slow response for a week the user moved past is ignored. */
+      let loads = 0;
 
-      const loadWeek = rxMethod<string>(
-        pipe(
-          tap((weekStart) => patchState(store, { weekStart, status: 'loading', adding: null })),
-          switchMap((weekStart) =>
-            api.range(weekStart, toIsoDate(addDays(fromIsoDate(weekStart), 6))).pipe(
-              tap((meals) => patchState(store, { meals, status: 'loaded' })),
-              catchError(() => {
-                patchState(store, { status: 'error' });
-                return EMPTY;
-              }),
-            ),
-          ),
-        ),
-      );
+      const loadWeek = async (weekStart: string): Promise<void> => {
+        const load = ++loads;
+        patchState(store, { weekStart, status: 'loading', adding: null });
+        try {
+          const meals = await api.range(weekStart, toIsoDate(addDays(fromIsoDate(weekStart), 6)));
+          if (load === loads) patchState(store, { meals, status: 'loaded' });
+        } catch {
+          if (load === loads) patchState(store, { status: 'error' });
+        }
+      };
 
       return {
         loadWeek,
 
-        loadRecipes: rxMethod<void>(
-          switchMap(() =>
-            recipesApi.list().pipe(
-              tap((recipes) => patchState(store, { recipes })),
-              catchError(() => EMPTY),
-            ),
-          ),
-        ),
-
-        thisWeek(): void {
-          loadWeek(toIsoDate(startOfWeek(clock.today())));
+        async loadRecipes(): Promise<void> {
+          try {
+            patchState(store, { recipes: await recipesApi.list() });
+          } catch {
+            // The picker stays empty; planning still works from a recipe's page.
+          }
         },
 
-        moveWeek(weeks: number): void {
-          loadWeek(toIsoDate(addDays(fromIsoDate(store.weekStart()), 7 * weeks)));
+        thisWeek(): Promise<void> {
+          return loadWeek(toIsoDate(startOfWeek(clock.today())));
+        },
+
+        moveWeek(weeks: number): Promise<void> {
+          return loadWeek(toIsoDate(addDays(fromIsoDate(store.weekStart()), 7 * weeks)));
         },
 
         startAdding(slot: Slot): void {
@@ -106,76 +101,64 @@ export const MealPlanStore = signalStore(
           patchState(store, { adding: null });
         },
 
-        addMeal: rxMethod<{ recipeId: string; servings: number }>(
-          exhaustMap(({ recipeId, servings }) => {
-            const slot = store.adding();
-            const recipe = store.recipes().find((r) => r.id === recipeId);
-            if (!slot || !recipe) return EMPTY;
-            return api.add({ ...slot, recipeId, recipeTitle: recipe.title, servings }).pipe(
-              tap((meal) => patchState(store, { meals: [...store.meals(), meal], adding: null })),
-              catchError(() => {
-                toaster.error(`Couldn't plan ${recipe.title}`);
-                return EMPTY;
-              }),
-            );
-          }),
-        ),
+        async addMeal({ recipeId, servings }: { recipeId: string; servings: number }): Promise<void> {
+          const slot = store.adding();
+          const recipe = store.recipes().find((r) => r.id === recipeId);
+          if (!slot || !recipe) return;
+          try {
+            const meal = await api.add({ ...slot, recipeId, recipeTitle: recipe.title, servings });
+            patchState(store, { meals: [...store.meals(), meal], adding: null });
+          } catch {
+            toaster.error(`Couldn't plan ${recipe.title}`);
+          }
+        },
 
         /** Optimistic, like a stepper should feel. */
-        changeServings: rxMethod<{ id: string; servings: number }>(
-          mergeMap(({ id, servings }) => {
-            const before = store.meals().find((m) => m.id === id)!;
-            if (servings < 1) return EMPTY;
-            replace({ ...before, servings });
-            return api.update(id, { servings }).pipe(
-              catchError(() => {
-                replace(before);
-                return EMPTY;
-              }),
-            );
-          }),
-        ),
+        async changeServings({ id, servings }: { id: string; servings: number }): Promise<void> {
+          const before = store.meals().find((m) => m.id === id)!;
+          if (servings < 1) return;
+          replace({ ...before, servings });
+          try {
+            await api.update(id, { servings });
+          } catch {
+            replace(before);
+          }
+        },
 
-        removeMeal: rxMethod<string>(
-          mergeMap((id) =>
-            api.remove(id).pipe(
-              tap(() => patchState(store, { meals: store.meals().filter((m) => m.id !== id) })),
-              catchError(() => EMPTY),
-            ),
-          ),
-        ),
+        async removeMeal(id: string): Promise<void> {
+          try {
+            await api.remove(id);
+            patchState(store, { meals: store.meals().filter((m) => m.id !== id) });
+          } catch {
+            toaster.error("That meal couldn't be removed");
+          }
+        },
 
         /** One list with everything the week's meals need, scaled to their servings. */
-        makeGroceryList: rxMethod<string>(
-          exhaustMap((name) => {
-            const meals = store.meals();
-            if (!meals.length) return EMPTY;
-            patchState(store, { generating: true });
+        async makeGroceryList(name: string): Promise<void> {
+          const meals = store.meals();
+          if (!meals.length || store.generating()) return;
+          patchState(store, { generating: true });
+          try {
             const recipeIds = [...new Set(meals.map((m) => m.recipeId))];
-            return forkJoin(recipeIds.map((id) => recipesApi.get(id))).pipe(
-              map((recipes) => itemsFor(meals, recipes)),
-              switchMap((items) => adder.createList(name, items)),
-              tap(({ list }) => {
-                patchState(store, { generating: false });
-                toaster.success(`Made ${list.name} from ${meals.length} meals`);
-                void router.navigate(['/groceries', list.id]);
-              }),
-              catchError(() => {
-                patchState(store, { generating: false });
-                toaster.error('The grocery list could not be made');
-                return EMPTY;
-              }),
-            );
-          }),
-        ),
+            const recipes = await Promise.all(recipeIds.map((id) => recipesApi.get(id)));
+            const { list } = await adder.createList(name, itemsFor(meals, recipes));
+            patchState(store, { generating: false });
+            toaster.success(`Made ${list.name} from ${meals.length} meals`);
+            await router.navigate(['/groceries', list.id]);
+          } catch {
+            patchState(store, { generating: false });
+            toaster.error('The grocery list could not be made');
+          }
+        },
       };
     },
   ),
   withTracing('Meal plan store'),
   withHooks({
     onInit: (store) => {
-      store.thisWeek();
-      store.loadRecipes();
+      void store.thisWeek();
+      void store.loadRecipes();
     },
   }),
 );

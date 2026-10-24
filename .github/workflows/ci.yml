@@ -28,6 +28,12 @@ jobs:
           registry-url: https://npm.pkg.github.com
           scope: '@tstapleton'
       - run: npm ci --no-audit --no-fund
+      - name: Check the app doesn't use RxJS
+        run: |
+          if grep -rnE "from ['\"]rxjs" src; then
+            echo "::error::Use async/await and signals instead of RxJS."
+            exit 1
+          fi
       - name: Typecheck the tests
         run: npx tsc -p tsconfig.spec.json --noEmit
       - run: npx jest --ci

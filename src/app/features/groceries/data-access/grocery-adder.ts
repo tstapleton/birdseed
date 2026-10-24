@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, concatMap, from, last, map, of, switchMap } from 'rxjs';
 import { GroceryApi } from '../../../core/api/grocery-api';
 import { GroceryList, NewGroceryItem } from '../../../core/api/models';
 import { planMerge } from '../../../shared/kitchen/merge-items';
@@ -18,27 +17,16 @@ export interface AddResult {
 export class GroceryAdder {
   private readonly api = inject(GroceryApi);
 
-  addToList(listId: string, items: NewGroceryItem[]): Observable<AddResult> {
-    return this.api.get(listId).pipe(
-      switchMap((list) => {
-        const plan = planMerge(list.items, items);
-        const added$ = plan.add.length ? this.api.addItems(listId, plan.add) : of(list);
-        return added$.pipe(
-          switchMap((afterAdd) =>
-            plan.update.length
-              ? from(plan.update).pipe(
-                  concatMap(({ id, patch }) => this.api.updateItem(listId, id, patch)),
-                  last(),
-                )
-              : of(afterAdd),
-          ),
-          map((final) => ({ list: final, added: plan.add.length, toppedUp: plan.update.length })),
-        );
-      }),
-    );
+  async addToList(listId: string, items: NewGroceryItem[]): Promise<AddResult> {
+    let list = await this.api.get(listId);
+    const plan = planMerge(list.items, items);
+    if (plan.add.length) list = await this.api.addItems(listId, plan.add);
+    for (const { id, patch } of plan.update) list = await this.api.updateItem(listId, id, patch);
+    return { list, added: plan.add.length, toppedUp: plan.update.length };
   }
 
-  createList(name: string, items: NewGroceryItem[]): Observable<AddResult> {
-    return this.api.create(name).pipe(switchMap((list) => this.addToList(list.id, items)));
+  async createList(name: string, items: NewGroceryItem[]): Promise<AddResult> {
+    const list = await this.api.create(name);
+    return this.addToList(list.id, items);
   }
 }

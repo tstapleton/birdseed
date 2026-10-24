@@ -1,14 +1,15 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
-import { mockBackendInterceptor } from './core/mock-backend/mock-backend.interceptor';
+import { Transport } from './core/api/transport';
+import { MockTransport } from './core/mock-backend/mock-transport';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
     provideRouter(routes, withComponentInputBinding()),
-    provideHttpClient(withInterceptors([mockBackendInterceptor])),
+    // No server: the demo answers API requests from data kept in localStorage.
+    { provide: Transport, useClass: MockTransport },
   ],
 };

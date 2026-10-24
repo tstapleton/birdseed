@@ -11,9 +11,11 @@ showing how the app's behaviour changed, as sequence diagrams recorded from its 
   straight from a recipe or from a whole week's plan. Items already on the list are
   topped up, with units converted, rather than listed twice.
 
-Built with Angular 20 (zoneless, signals) and NgRx SignalStore. There's no server: an
-HTTP interceptor answers `/api/*` from an in-memory database kept in `localStorage`, so
-`ng serve` is all you need, and the app deploys as static files.
+Built with Angular 20 (zoneless, signals) and NgRx SignalStore, with async/await rather
+than RxJS. API clients talk to the backend through a small `Transport` (`fetch` in
+production). There's no server: the demo swaps in a transport that answers from an
+in-memory database kept in `localStorage`, so `ng serve` is all you need, and the app
+deploys as static files.
 
 ## Run it
 
@@ -35,7 +37,7 @@ with `read:packages` and add it to your user `~/.npmrc`:
 
 ```
 src/app/
-  core/         The "host app": API clients, models, clock, toasts, and the mock backend
+  core/         The "host app": API clients and transport, models, clock, toasts, mock backend
   shared/       Kitchen logic with no Angular in it: units, ingredient parsing, aisles, merging
   features/
     recipes/    Collection, recipe page, editor (RecipesStore, RecipeDetailStore, RecipeEditorStore)

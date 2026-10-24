@@ -1,6 +1,5 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { screen, within } from '@testing-library/angular';
-import { throwError } from 'rxjs';
+import { ApiError } from '../../core/api/transport';
 import { renderApp } from '../../../testing/render-app';
 
 describe('Recipes', () => {
@@ -39,7 +38,7 @@ describe('Recipes', () => {
 
     it('puts the star back when saving a favourite fails', async () => {
       const { recipes, toaster, user } = await renderApp('/recipes');
-      recipes.setFavorite.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 503 })));
+      recipes.setFavorite.mockRejectedValueOnce(new ApiError(503));
 
       await user.click(await screen.findByRole('button', { name: 'Add Banana bread to favourites' }));
 
