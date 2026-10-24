@@ -42,6 +42,13 @@ export function parseIngredientLine(line: string): ParsedIngredient | null {
   return { name: name.trim().toLowerCase(), quantity, unit: unit ?? 'piece' };
 }
 
+/** A quantity typed on its own: "1½", "1/2", "0.25". Empty is null; anything else is NaN. */
+export function parseQuantityText(text: string): number | null {
+  const raw = text.trim();
+  if (!raw) return null;
+  return new RegExp(`^${QUANTITY}$`).test(raw) ? parseQuantity(raw) : NaN;
+}
+
 function parseQuantity(raw: string): number {
   const mixed = /^(\d+)\s+(\d+)\/(\d+)$/.exec(raw);
   if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);

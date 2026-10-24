@@ -91,6 +91,73 @@ describe('Recipes', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent("That recipe doesn't exist.");
     });
   });
+
+  describe('writing a recipe', () => {
+    it('creates a recipe, pointing out what is missing first', async () => {
+      const { recipes, toaster, user } = await renderApp('/recipes');
+
+      await user.click(await screen.findByRole('link', { name: 'New recipe' }));
+      await user.click(await screen.findByRole('button', { name: 'Save recipe' }));
+      const errors = within(screen.getByRole('alert'));
+      expect(errors.getByText('Give the recipe a name')).toBeInTheDocument();
+      expect(errors.getByText('Add at least one ingredient')).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText('Name'), 'Pancakes');
+      await user.type(screen.getByLabelText('Tags'), 'Breakfast, sweet');
+      await user.click(screen.getByRole('button', { name: 'Paste a list' }));
+      await user.type(screen.getByLabelText(/One ingredient per line/), '1½ cups flour{enter}2 eggs{enter}300 ml milk');
+      await user.click(screen.getByRole('button', { name: 'Add these ingredients' }));
+      await user.type(screen.getByRole('textbox', { name: 'Step 1' }), 'Whisk everything together and fry in a hot pan.');
+      await user.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Pancakes' })).toBeInTheDocument();
+      expect(ingredientLines()).toEqual(['1½ cups flour', '2 eggs', '300 ml milk']);
+      expect(recipes.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Pancakes',
+          tags: ['breakfast', 'sweet'],
+          ingredients: [
+            { name: 'flour', quantity: 1.5, unit: 'cup' },
+            { name: 'eggs', quantity: 2, unit: 'piece' },
+            { name: 'milk', quantity: 300, unit: 'ml' },
+          ],
+        }),
+      );
+      expect(toaster.success).toHaveBeenCalledWith('Saved Pancakes');
+    });
+
+    it('edits a recipe', async () => {
+      const { recipes, user } = await renderApp('/recipes/r-greek-salad');
+
+      await user.click(await screen.findByRole('link', { name: 'Edit' }));
+      const title = await screen.findByLabelText('Name');
+      await user.clear(title);
+      await user.type(title, 'Horiatiki');
+      await user.click(screen.getByRole('button', { name: 'Remove ingredient 3' }));
+      await user.clear(screen.getByLabelText('Quantity for ingredient 1'));
+      await user.type(screen.getByLabelText('Quantity for ingredient 1'), '400');
+      await user.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Horiatiki' })).toBeInTheDocument();
+      expect(ingredientLines()).toContain('400 g tomatoes');
+      expect(ingredientLines()).not.toContain('½ red onion');
+      expect(recipes.update).toHaveBeenCalledWith('r-greek-salad', expect.objectContaining({ title: 'Horiatiki' }));
+    });
+
+    it('flags a quantity that is not a number', async () => {
+      const { recipes, user } = await renderApp('/recipes/new');
+
+      await user.type(await screen.findByLabelText('Name'), 'Toast');
+      await user.type(screen.getByLabelText('Quantity for ingredient 1'), 'some');
+      await user.type(screen.getByLabelText('Ingredient 1'), 'bread');
+      await user.type(screen.getByRole('textbox', { name: 'Step 1' }), 'Toast it.');
+      await user.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Some quantities aren’t numbers');
+      expect(screen.getByLabelText('Quantity for ingredient 1')).toHaveAttribute('aria-invalid', 'true');
+      expect(recipes.create).not.toHaveBeenCalled();
+    });
+  });
 });
 
 function ingredientLines(): string[] {
