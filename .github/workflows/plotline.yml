@@ -11,7 +11,7 @@ concurrency:
 
 permissions:
   contents: read
-  packages: read # @tstapleton/plotline comes from GitHub Packages
+  packages: read # a base commit from before the move to npmjs installs @tstapleton/plotline from GitHub Packages
   pull-requests: write # the behaviour diff comment
 
 jobs:

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { render } from '@testing-library/angular';
-import { provideTracing, recordPlotline, traced } from '@tstapleton/plotline/jest';
+import { provideTracing, recordPlotline, traced } from '@tsociety/plotline/jest';
 import userEvent from '@testing-library/user-event';
 import { App } from '../app/app';
 import { routes } from '../app/app.routes';
