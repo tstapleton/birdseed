@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { withTracing } from '@tstapleton/plotline/store';
+import { withTracing } from '@tsociety/plotline/store';
 import { Recipe, RecipeDraft, Unit } from '../../../core/api/models';
 import { RecipesApi } from '../../../core/api/recipes-api';
 import { Toaster } from '../../../core/notifications/toaster';

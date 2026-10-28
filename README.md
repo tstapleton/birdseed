@@ -20,17 +20,9 @@ deploys as static files.
 ## Run it
 
 ```bash
-npm ci        # needs a GitHub token for @tstapleton packages; see below
+npm ci
 npm start     # http://localhost:4200
 npm test      # unit and integration tests
-```
-
-`@tstapleton/plotline` is published to GitHub Packages, which needs a token even for
-public packages. Create a [personal access token](https://github.com/settings/tokens)
-with `read:packages` and add it to your user `~/.npmrc`:
-
-```
-//npm.pkg.github.com/:_authToken=YOUR_TOKEN
 ```
 
 ## How it's put together
